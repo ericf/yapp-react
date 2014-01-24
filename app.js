@@ -1,9 +1,13 @@
 YUI({
     combine: false,
     filter : 'raw'
-}).use('app-base', 'model', function (Y) {
+}).use('app-base', 'model', 'json', function (Y) {
     var ReactView = Y.Base.create('reactView', Y.View, [], {
         initializer: function () {
+            // Create and render the React component
+            this.component = this.get('component')(this.getProps());
+            React.renderComponent(this.component, this.get('container').getDOMNode());
+
             // Auto-observe Models and ModelLists and render when they change.
             Y.Object.each(this.getAttrs(), function (val) {
                 if (val && (val._isYUIModel || val._isYUIModelList)) {
@@ -13,23 +17,21 @@ YUI({
         },
 
         render: function () {
-            var component = this.get('component')(this.toJSON());
-            React.renderComponent(component, this.get('container').getDOMNode());
+            this.component.setProps(this.getProps());
             return this;
         },
 
-        toJSON: function () {
-            var data = {};
+        getProps: function () {
+            var attrs = this.getAttrs();
 
-            Y.Object.each(this.getAttrs(), function (val, key) {
-                if (val && typeof val.toJSON === 'function') {
-                    val = val.toJSON();
-                }
+            // Prune view-specific attributes.
+            delete attrs.initialized;
+            delete attrs.destroyed;
+            delete attrs.container;
+            delete attrs.component;
 
-                data[key] = val;
-            });
-
-            return data;
+            // Poor-mans clone which calls `toJSON()` on Models and ModelLists.
+            return Y.JSON.parse(Y.JSON.stringify(attrs));
         }
     });
 
